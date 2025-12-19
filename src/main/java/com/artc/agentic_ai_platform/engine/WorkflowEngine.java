@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.engine;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IAgent;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
 import com.artc.agentic_ai_platform.core.ITaskQueue;
@@ -140,8 +141,8 @@ public class WorkflowEngine {
     private void markAsFailed(String workflowId, String reason) {
         try {
             log.warn("Setting status FAILED for workflow: {}", workflowId);
-            storage.save("wf:" + workflowId + ":status", WorkflowStatus.FAILED.name());
-            storage.save("wf:" + workflowId + ":error", reason);
+            storage.save(String.format(AppConstants.KEY_STATUS,workflowId), WorkflowStatus.FAILED.name());
+            storage.save(String.format(AppConstants.KEY_ERROR, workflowId), reason);
         } catch (Exception e) {
             log.error("Failed to write FAILED status to storage for {}", workflowId, e);
         }

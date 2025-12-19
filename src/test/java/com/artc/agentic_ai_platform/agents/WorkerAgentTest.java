@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.agents;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IAgentTool;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
 import com.artc.agentic_ai_platform.core.llm.MockLLMService;
@@ -68,9 +69,11 @@ class WorkerAgentTest {
 
         // 2. Verify Storage (Result saved with TTL)
         verify(storage).save(
-                eq("wf:wf-202:res:TEST_TOOL"),
+                eq(String.format(AppConstants.KEY_TOOL_RESULT,"wf-202","TEST_TOOL")),
                 contains("AI Interpretation")
         );
+
+
 
         // 3. Verify Next Step is Reviewer
         assertEquals(1, result.size());

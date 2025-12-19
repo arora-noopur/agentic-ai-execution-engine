@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.agents;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
 import com.artc.agentic_ai_platform.core.llm.MockLLMService;
 import com.artc.agentic_ai_platform.model.Task;
@@ -41,15 +42,15 @@ class ReviewerAgentTest {
 
         when(appConfig.getAgents().getReviewer().isEnabled()).thenReturn(true);
         // Status is valid (not done)
-        when(storage.get(eq("wf:" + wfId + ":status"), eq(String.class))).thenReturn(Optional.of("IN_PROGRESS"));
+        when(storage.get(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(String.class))).thenReturn(Optional.of("IN_PROGRESS"));
 
         // Manifest expects 2 tools
-        when(storage.get(eq("wf:" + wfId + ":manifest"), eq(String.class)))
+        when(storage.get(eq(String.format(AppConstants.KEY_MANIFEST,wfId)), eq(String.class)))
                 .thenReturn(Optional.of("TOOL_A,TOOL_B"));
 
         // Only Tool A is done
-        when(storage.get(eq("wf:" + wfId + ":res:TOOL_A"), eq(String.class))).thenReturn(Optional.of("Res A"));
-        when(storage.get(eq("wf:" + wfId + ":res:TOOL_B"), eq(String.class))).thenReturn(Optional.empty()); // Missing!
+        when(storage.get(eq(String.format(AppConstants.KEY_TOOL_RESULT,wfId,"TOOL_A")), eq(String.class))).thenReturn(Optional.of("Res A"));
+        when(storage.get(eq(String.format(AppConstants.KEY_TOOL_RESULT,wfId,"TOOL_B")), eq(String.class))).thenReturn(Optional.empty()); // Missing!
 
         // --- ACT ---
         List<Task> result = reviewerAgent.process(task);
@@ -68,11 +69,11 @@ class ReviewerAgentTest {
         Task task = Task.builder().workflowId(wfId).userRequest("Summary").build();
 
         when(appConfig.getAgents().getReviewer().isEnabled()).thenReturn(true);
-        when(storage.get(eq("wf:" + wfId + ":status"), eq(String.class))).thenReturn(Optional.of("IN_PROGRESS"));
-        when(storage.get(eq("wf:" + wfId + ":manifest"), eq(String.class))).thenReturn(Optional.of("TOOL_A"));
+        when(storage.get(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(String.class))).thenReturn(Optional.of("IN_PROGRESS"));
+        when(storage.get(eq(String.format(AppConstants.KEY_MANIFEST,wfId)), eq(String.class))).thenReturn(Optional.of("TOOL_A"));
 
         // Result is ready
-        when(storage.get(eq("wf:" + wfId + ":res:TOOL_A"), eq(String.class))).thenReturn(Optional.of("Data A"));
+        when(storage.get(eq(String.format(AppConstants.KEY_TOOL_RESULT,wfId, "TOOL_A")), eq(String.class))).thenReturn(Optional.of("Data A"));
 
         when(llmService.generate(anyString(), anyString())).thenReturn("Final Verdict");
 
@@ -81,9 +82,9 @@ class ReviewerAgentTest {
 
         // --- ASSERT ---
         // 1. Verify Status updates
-        verify(storage).save(eq("wf:" + wfId + ":status"), eq(WorkflowStatus.REVIEWING.name()));
-        verify(storage).save(eq("wf:" + wfId + ":status"), eq(WorkflowStatus.COMPLETED.name()));
-        verify(storage).save(eq("wf:" + wfId + ":review"), eq("Final Verdict"));
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(WorkflowStatus.REVIEWING.name()));
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(WorkflowStatus.COMPLETED.name()));
+        verify(storage).save(eq(String.format(AppConstants.KEY_REVIEW,wfId)), eq("Final Verdict"));
 
         // 2. Verify LLM Called
         verify(llmService).generate(anyString(), contains("Data A"));
@@ -97,7 +98,7 @@ class ReviewerAgentTest {
         when(appConfig.getAgents().getReviewer().isEnabled()).thenReturn(true);
 
         // Status is ALREADY COMPLETED
-        when(storage.get(eq("wf:" + wfId + ":status"), eq(String.class)))
+        when(storage.get(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(String.class)))
                 .thenReturn(Optional.of(WorkflowStatus.COMPLETED.name()));
 
         // --- ACT ---

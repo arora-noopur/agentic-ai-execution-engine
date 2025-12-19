@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.agents;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
 import com.artc.agentic_ai_platform.core.llm.ILlmService;
 import com.artc.agentic_ai_platform.model.AgentType;
@@ -74,10 +75,10 @@ class PlannerAgentTest {
 
         // 2. Check Storage Updates
         // Verify Manifest Saved
-        verify(storage).save(eq("wf:" + wfId + ":manifest"), eq("LOG_ANALYZER,DB_CHECKER"));
+        verify(storage).save(eq(String.format(AppConstants.KEY_MANIFEST,wfId)), eq("LOG_ANALYZER,DB_CHECKER"));
 
         // Verify Status Transitions
-        verify(storage).save(eq("wf:" + wfId + ":status"), eq(WorkflowStatus.PLANNING.name()));
-        verify(storage).save(eq("wf:" + wfId + ":status"), eq(WorkflowStatus.IN_PROGRESS.name()));
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(WorkflowStatus.PLANNING.name()));
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,wfId)), eq(WorkflowStatus.IN_PROGRESS.name()));
     }
 }

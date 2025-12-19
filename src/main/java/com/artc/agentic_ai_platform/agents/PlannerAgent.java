@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.agents;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IAgent;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
 import com.artc.agentic_ai_platform.core.llm.ILlmService;
@@ -39,7 +40,7 @@ public class PlannerAgent implements IAgent {
             return List.of();
         }
 
-        storage.save("wf:" + task.getWorkflowId() + ":status", WorkflowStatus.PLANNING.name());
+        storage.save(String.format(AppConstants.KEY_STATUS,task.getWorkflowId()), WorkflowStatus.PLANNING.name());
 
         log.info("[PLANNER] Prompting LLM for incident: {}", task.getUserRequest());
 
@@ -91,8 +92,8 @@ public class PlannerAgent implements IAgent {
         // 5. Save Manifest (The "Contract" for the Reviewer) & the updated workflow status
         // Key: wf:{id}:manifest -> Value: ["LOG_ANALYZER", "ERP_FETCHER"]
         String manifestStr = String.join(",", expectedTools);
-        storage.save("wf:" + task.getWorkflowId() + ":manifest", manifestStr);
-        storage.save("wf:" + task.getWorkflowId() + ":status", WorkflowStatus.IN_PROGRESS.name());
+        storage.save(String.format(AppConstants.KEY_MANIFEST,task.getWorkflowId()), manifestStr);
+        storage.save(String.format(AppConstants.KEY_STATUS, task.getWorkflowId()), WorkflowStatus.IN_PROGRESS.name());
         return downstreamTasks;
     }
 }

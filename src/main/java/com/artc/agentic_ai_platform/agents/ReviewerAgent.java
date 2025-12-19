@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.agents;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IAgent;
 import com.artc.agentic_ai_platform.core.llm.MockLLMService;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
@@ -34,14 +35,14 @@ public class ReviewerAgent implements IAgent {
         // --- 1. Runtime Gate (Configuration check)
         if(!appConfig.getAgents().getReviewer().isEnabled()) {
             log.info("[REVIEWER] Disabled by config. Skipping analysis for workflow: {}", task.getWorkflowId());
-            storage.save("wf:"+ task.getWorkflowId() + ":status", WorkflowStatus.COMPLETED_NO_REVIEW.name());
+            storage.save(String.format(AppConstants.KEY_STATUS,task.getWorkflowId()), WorkflowStatus.COMPLETED_NO_REVIEW.name());
             return List.of();
         }
 
         String wfId = task.getWorkflowId();
 
         // --- 2. Idempotency check (Prevent Double Processing) ---
-        Optional<String> status = storage.get("wf:" + wfId + ":status", String.class);
+        Optional<String> status = storage.get(String.format(AppConstants.KEY_STATUS,task.getWorkflowId()), String.class);
         if (status.isPresent()) {
             String current = status.get();
             if (WorkflowStatus.COMPLETED.name().equals(current) || WorkflowStatus.REVIEWING.name().equals(current)) {
@@ -51,7 +52,7 @@ public class ReviewerAgent implements IAgent {
         }
 
         // --- 3. Fetch Manifest (What are we waiting for ?) ---
-        Optional<String> manifestOpt = storage.get("wf:" + wfId + ":manifest", String.class);
+        Optional<String> manifestOpt = storage.get(String.format(AppConstants.KEY_MANIFEST,task.getWorkflowId()), String.class);
         if(manifestOpt.isEmpty()) {
             log.warn("[REVIEWER] Manifest missing for {}. Planner might be slow", wfId);
             return List.of(); // Wait for Planner to save manifest
@@ -62,7 +63,7 @@ public class ReviewerAgent implements IAgent {
 
         // --- 4. Dynamic Data Completeness check ---
         for(String toolName: expectedTools) {
-            Optional<String> result = storage.get("wf:"+wfId+":res:"+toolName, String.class);
+            Optional<String> result = storage.get(String.format(AppConstants.KEY_TOOL_RESULT, task.getWorkflowId(),toolName), String.class);
 
             if(result.isEmpty()) {
                 log.info("[REVIEWER] Waiting for tool: {}", toolName);
@@ -73,7 +74,7 @@ public class ReviewerAgent implements IAgent {
 
         // --- 5. Critical Section (The Execution) ---
         // Lock the workflow status immediately
-        storage.save("wf:" + wfId + ":status", WorkflowStatus.REVIEWING.name());
+        storage.save(String.format(AppConstants.KEY_STATUS, task.getWorkflowId()), WorkflowStatus.REVIEWING.name());
         log.info("[REVIEWER] All data gathered. Executing AI Analysis...");
 
         // --- 6. Build Dynamic Prompt ---
@@ -93,8 +94,8 @@ public class ReviewerAgent implements IAgent {
 
         String decision = llmService.generate(systemPrompt, userPrompt);
 
-        storage.save("wf:" + wfId + ":review", decision);
-        storage.save("wf:" + wfId + ":status", WorkflowStatus.COMPLETED.name());
+        storage.save(String.format(AppConstants.KEY_REVIEW,task.getWorkflowId()), decision);
+        storage.save(String.format(AppConstants.KEY_STATUS,task.getWorkflowId()), WorkflowStatus.COMPLETED.name());
 
         log.info("#######################################################");
         log.info("FINAL DECISION: {}", decision);

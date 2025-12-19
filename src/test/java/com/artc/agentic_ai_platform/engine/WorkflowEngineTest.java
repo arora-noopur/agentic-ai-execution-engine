@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.engine;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IAgent;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
 import com.artc.agentic_ai_platform.core.ITaskQueue;
@@ -115,7 +116,7 @@ class WorkflowEngineTest {
 
         // Assert
         verify(queue, never()).push(task); // Should DROP, not push
-        verify(storage).save(eq("wf:wf-max:status"), eq(WorkflowStatus.FAILED.name())); // Should mark Failed
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,"wf-max")), eq(WorkflowStatus.FAILED.name())); // Should mark Failed
     }
 
     @Test
@@ -131,7 +132,7 @@ class WorkflowEngineTest {
 
         // Assert
         verify(queue, never()).push(task); // Drop immediately
-        verify(storage).save(eq("wf:wf-term:status"), eq(WorkflowStatus.FAILED.name()));
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,"wf-term")), eq(WorkflowStatus.FAILED.name()));
         verify(storage).save(contains("error"), contains("Bad Data"));
     }
 
@@ -147,7 +148,7 @@ class WorkflowEngineTest {
         workflowEngine.runConsumerLoop(1);
 
         // Assert
-        verify(storage).save(eq("wf:wf-crash:status"), eq(WorkflowStatus.FAILED.name()));
+        verify(storage).save(eq(String.format(AppConstants.KEY_STATUS,"wf-crash")), eq(WorkflowStatus.FAILED.name()));
         verify(storage).save(contains("error"), contains("Null Pointer Oops"));
     }
 }

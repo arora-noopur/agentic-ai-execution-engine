@@ -1,6 +1,7 @@
 package com.artc.agentic_ai_platform.agents;
 
 import com.artc.agentic_ai_platform.config.AppConfig;
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IAgent;
 import com.artc.agentic_ai_platform.core.IAgentTool;
 import com.artc.agentic_ai_platform.core.exception.TerminalException;
@@ -74,7 +75,7 @@ public class WorkerAgent implements IAgent {
                         .collect(Collectors.joining("\n --------- \n"));
 
         // --- Save Result ---
-        storage.save("wf:" + task.getWorkflowId() + ":res:" + task.getToolName(), aggregatedResult);
+        storage.save(String.format(AppConstants.KEY_TOOL_RESULT, task.getWorkflowId(), task.getToolName()), aggregatedResult);
 
         // --- Trigger Reviewer ---
         return List.of(Task.builder()
