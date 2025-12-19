@@ -1,6 +1,8 @@
 package com.artc.agentic_ai_platform.controller;
 
+import com.artc.agentic_ai_platform.constants.AppConstants;
 import com.artc.agentic_ai_platform.core.IStorageBackend;
+import com.artc.agentic_ai_platform.model.WorkflowStatusResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,24 +19,22 @@ public class WorkflowController {
     private final IStorageBackend storage;
 
     @GetMapping("/{workflowId}/status")
-    public ResponseEntity<Map<String, String>> getStatus(@PathVariable String workflowId) {
+    public ResponseEntity<WorkflowStatusResponse> getStatus(@PathVariable String workflowId) {
 
-        // 1. Fetch status from storage
-        String statusKey = "wf:" + workflowId + ":status";
-        Optional<String> statusOpt = storage.get(statusKey, String.class);
-        String status = statusOpt.orElse("UNKNOWN");
+        // Fetch status from storage
+        String statusKey = String.format(AppConstants.KEY_STATUS, workflowId);
+        String status = storage.get(statusKey, String.class).orElse("UNKNOWN");
 
-        // 2. Fetch final decision/answer (if available)
-        String reviewKey = "wf:" + workflowId + ":review";
-        Optional<String> decisionOpt = storage.get(reviewKey, String.class);
+        // Fetch final decision (if available)
+        String reviewKey = String.format(AppConstants.KEY_REVIEW, workflowId);
+        String decision = storage.get(reviewKey, String.class).orElse(null);
 
-        // 3. Construct Response (Using HashMap to allow conditional fields)
-        Map<String, String> response = new HashMap<>();
-        response.put("workflowId", workflowId);
-        response.put("status", status);
-
-        // Only include the decision if it exists (e.g., when COMPLETED)
-        decisionOpt.ifPresent(decision -> response.put("finalDecision", decision));
+        // Build Response
+        WorkflowStatusResponse response = WorkflowStatusResponse.builder()
+                .workflowId(workflowId)
+                .status(status)
+                .finalDecision(decision)
+                .build();
 
         return ResponseEntity.ok(response);
     }
