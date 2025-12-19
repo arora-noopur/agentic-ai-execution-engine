@@ -4,9 +4,18 @@ Agentic AI Platform: Design & Architecture
 1\. Overview
 ------------
 
-The **Agentic AI Platform** is a distributed, event-driven orchestration engine designed to execute complex, multi-step workflows using Large Language Models (LLMs).
+The **Agentic AI Execution Engine** is a distributed, event-driven orchestration platform designed to execute complex, multi-step workflows using Large Language Models (LLMs).
 
-Unlike linear chains, this platform utilizes a **Planner-Worker-Reviewer** pattern, allowing for dynamic task decomposition, parallel execution, and self-correcting quality assurance. The system is built on a **"Pull-Based"** architecture where autonomous worker threads consume tasks from a shared queue.
+Unlike fragile linear chains, this platform implements a **Planner-Worker-Reviewer** architecture to achieve reliability and scale.
+
+*   **Planner:** Decomposes high-level goals into atomic, executable tasks.
+
+*   **Worker:** Executes tasks in parallel using a **"Pull-Based"** model, where autonomous threads consume work from a shared queue.
+
+*   **Reviewer:** Aggregates and validates worker outputs to synthesize a complete, verified final response.
+
+
+_Key Goal: To decouple task reasoning (Planning) from task execution (Working), enabling high-concurrency processing for data-intensive AI applications._
 
 2\. High-Level Architecture
 ---------------------------
@@ -29,6 +38,44 @@ The system follows a micro-kernel architecture where the core **Workflow Engine*
 
 4.  **Coordination:** All state, intermediate results, and synchronization signals are stored in a shared IStorageBackend.
 
+### Architecture Diagram
+
+```mermaid
+graph LR
+    %% Styles
+    classDef client fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef app fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
+    classDef db fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    classDef ext fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    Client((Client)):::client -->|POST /incident| API[API Gateway / Controller]:::app
+
+    subgraph "Agentic AI Platform (Spring Boot)"
+        API -->|Push Task| Q[(Global Task Queue)]:::db
+        
+        subgraph "Execution Engine"
+            TP[Main Thread Pool]:::app -->|Poll| Q
+            
+            TP -->|1. Route| Planner[Planner Agent]:::app
+            TP -->|2. Route| Worker[Worker Agent]:::app
+            TP -->|3. Route| Reviewer[Reviewer Agent]:::app
+
+            Planner -->|Decompose| Q
+            
+            subgraph "Scatter-Gather Pattern"
+                Worker -->|Fan Out| IP[Internal Worker Pool]:::app
+                IP -->|Parallel I/O| Tools[Tools & Logs]:::ext
+                IP -->|Gather| Worker
+            end
+            
+            Worker -->|Save Result| Cache[(Redis Storage)]:::db
+            Reviewer -->|Read Evidence| Cache
+        end
+    end
+
+    Reviewer -->|Final Decision| Cache
+    Planner & Worker & Reviewer -.->|Inference| LLM[External LLM API]:::ext
+```
 
 3\. Pluggable Infrastructure (Strategy Pattern)
 -----------------------------------------------
@@ -286,39 +333,25 @@ _Wait until the application starts on port `8080`._
 
 `./check_status.sh <WORKFLOW_ID>`
 
-```mermaid
-graph LR
-    %% Styles
-    classDef client fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef app fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
-    classDef db fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
-    classDef ext fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+9\. 🚀 Roadmap & Future Architecture
+-------------------
 
-    Client((Client)):::client -->|POST /incident| API[API Gateway / Controller]:::app
+This platform is designed to evolve from a static execution engine into a dynamic, self-healing ecosystem. The following architectural enhancements are prioritized:
 
-    subgraph "Agentic AI Platform (Spring Boot)"
-        API -->|Push Task| Q[(Global Task Queue)]:::db
-        
-        subgraph "Execution Engine"
-            TP[Main Thread Pool]:::app -->|Poll| Q
-            
-            TP -->|1. Route| Planner[Planner Agent]:::app
-            TP -->|2. Route| Worker[Worker Agent]:::app
-            TP -->|3. Route| Reviewer[Reviewer Agent]:::app
+*   **Dynamic Tool Discovery (Hot-Swapping)**
 
-            Planner -->|Decompose| Q
-            
-            subgraph "Scatter-Gather Pattern"
-                Worker -->|Fan Out| IP[Internal Worker Pool]:::app
-                IP -->|Parallel I/O| Tools[Tools & Logs]:::ext
-                IP -->|Gather| Worker
-            end
-            
-            Worker -->|Save Result| Cache[(Redis Storage)]:::db
-            Reviewer -->|Read Evidence| Cache
-        end
-    end
+    *   **Goal:** Enable agents to acquire new capabilities at runtime without restarting the application.
 
-    Reviewer -->|Final Decision| Cache
-    Planner & Worker & Reviewer -.->|Inference| LLM[External LLM API]:::ext
-```
+    *   **Strategy:** Implement a "Tool Registry" service. Workers will dynamically load tool definitions (Python scripts, API specs) from an external source, allowing for zero-downtime upgrades and plugin-based extensibility.
+
+*   **System-Wide Idempotency**
+
+    *   **Goal:** Guarantee strict consistency and prevent duplicate side effects (e.g., double billing, redundant API calls) during network failures or worker crashes.
+
+    *   **Strategy:** Extend the current deduplication logic from the Reviewer to the **Worker** and **Planner** agents. This ensures that retried tasks do not result in duplicate API calls, double-payments, or redundant sub-task generation.
+
+*   **Self-Correcting Feedback Loops**
+
+    *   **Goal:** Transform the Reviewer from a passive validator into an active quality gate.
+
+    *   **Strategy:** Implement active rejection logic where the Reviewer can generate "Correction Tasks" and push them back to the Worker queue, creating a closed loop that continues until acceptance criteria are met.
