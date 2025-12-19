@@ -1,0 +1,49 @@
+application:
+  name: agentic-ai-platform
+
+server:
+  port: 8080
+
+# --- APP SPECIFIC CONFIGURATION ---
+app:
+  storage:
+    backend: ram  # Options: ram | redis
+    default_ttl_sec: 3600
+    ram:
+      max_entries: 100000
+
+
+  queue:
+    backend: inmem  # Options: inmem | redis
+    concurrency:
+      workers: 8
+      max_retries: 5
+      backoff_strategy: exponential
+
+  agents:
+    workers:
+      pool_size: 4
+    planner:
+      enabled: true
+    reviewer:
+      enabled: true
+
+# --- REDIS CONFIGURATION ---
+# Only required if app.storage.backend=redis OR app.queue.backend=redis
+spring:
+  data:
+    redis:
+      host: redis-stack
+      port: 6379
+      database: 0
+      timeout: 10000ms
+
+# --- LOGGING ---
+logging:
+  level:
+    root: INFO
+    # Set to DEBUG to see the internal state transitions
+    com.artc.agentic_ai_platform: DEBUG
+  pattern:
+    # Includes TraceID/TaskID if MDC is set
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - [TraceId:%X{traceId}] %msg%n"
