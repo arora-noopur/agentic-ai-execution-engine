@@ -12,6 +12,8 @@ import com.artc.agentic_ai_platform.model.Task;
 import com.artc.agentic_ai_platform.model.WorkflowStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,12 +23,13 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class WorkflowEngine {
+public class WorkflowEngine implements ApplicationListener<ContextClosedEvent> {
 
     private final AppConfig appConfig;
     private final ITaskQueue queue;
     private final Map<AgentType, IAgent> agentMap;
     private final IStorageBackend storage;
+    private volatile boolean running = true;
 
     public WorkflowEngine(AppConfig appConfig, ITaskQueue queue, List<IAgent> agentList, IStorageBackend storage) {
         this.appConfig = appConfig;
@@ -35,43 +38,39 @@ public class WorkflowEngine {
         this.storage = storage;
     }
 
+    @Override
+    public void onApplicationEvent(ContextClosedEvent event) {
+        log.info(">>>> SHUTDOWN SIGNAL RECEIVED. Stopping loop... <<<<");
+        this.running = false;
+    }
+
     /**
      * The main consumer loop. This runs indefinitely on a worker thread.
      */
     public void runConsumerLoop(int workerId) {
         log.info("Worker-{} started.", workerId);
 
-        while (true) {
+        while (this.running) {
             Task task = null;
 
             try {
-                // 1. Check for Shutdown Signal before blocking
-                if (Thread.currentThread().isInterrupted()) {
-                    log.info("Worker-{} shutting down.", workerId);
-                    break;
-                }
 
-                // 2. Fetch Task (Blocking)
+                // 1. Fetch Task (Blocking)
                 Optional<Task> taskOpt = queue.pop();
                 if (taskOpt.isEmpty()) {
-                    if (Thread.interrupted()) { // Clear flag if interrupted during poll
-                        log.info("Worker-{} interrupted during poll. Shutting down.", workerId);
-                        break;
-                    }
                     continue;
                 }
 
                 task = taskOpt.get();
                 MDC.put("traceId", task.getWorkflowId());
 
-                // 3. Check Backoff (Is it too early?)
+                // 2. Check Backoff (Is it too early?)
                 if (shouldWait(task)) {
                     queue.push(task);
-                    try { Thread.sleep(200); } catch (InterruptedException ig) {}
                     continue;
                 }
 
-                // 4. Process
+                // 3. Process
                 processTask(task);
 
             } catch (RetryableException e) {
@@ -96,12 +95,12 @@ public class WorkflowEngine {
                 // Handle unexpected crashes and update workflow status accordingly
                 if (task != null) markAsFailed(task.getWorkflowId(), e.getMessage());
 
-                // Prevent tight loop on crash
-                try { Thread.sleep(1000); } catch (InterruptedException ig) {}
             } finally {
                 MDC.clear();
             }
         }
+
+        log.info("Worker-{}. Shutting down.", workerId);
     }
 
     private void processTask(Task task) {

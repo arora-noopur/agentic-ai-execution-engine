@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class InMemoryQueueTest {
 
     @Test
-    void pushAndPop_ShouldStoreAndRetrieveTask() {
+    void pushAndPop_ShouldStoreAndRetrieveTask() throws InterruptedException {
         // Arrange
         InMemoryQueue queue = new InMemoryQueue();
         Task task = Task.builder().taskId("local-1").build();
@@ -25,7 +25,7 @@ class InMemoryQueueTest {
     }
 
     @Test
-    void pop_ShouldReturnEmpty_WhenQueueIsEmpty() {
+    void pop_ShouldReturnEmpty_WhenQueueIsEmpty() throws InterruptedException {
         // Arrange
         InMemoryQueue queue = new InMemoryQueue();
 
