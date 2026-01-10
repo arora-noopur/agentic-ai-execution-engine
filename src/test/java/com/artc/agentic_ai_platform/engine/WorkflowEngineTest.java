@@ -50,16 +50,14 @@ class WorkflowEngineTest {
      * 1. Returns the 'task' first.
      * 2. On second call, interrupts thread and returns empty to trigger the break condition.
      */
-    private void mockQueueOneShot(Task task) {
-        when(queue.pop()).thenReturn(Optional.of(task))
-                .thenAnswer((Answer<Optional<Task>>) invocation -> {
-                    Thread.currentThread().interrupt(); // Signal stop
-                    return Optional.empty();
-                });
+    private void mockQueueOneShot(Task task) throws InterruptedException {
+        when(queue.pop())
+                .thenReturn(Optional.of(task))           // 1st Iteration: Do work
+                .thenThrow(new InterruptedException());  // 2nd Iteration: STOP!
     }
 
     @Test
-    void runConsumerLoop_ShouldProcessTask_AndPushDownstream() {
+    void runConsumerLoop_ShouldProcessTask_AndPushDownstream() throws InterruptedException {
         // Arrange
         Task inputTask = Task.builder()
                 .workflowId("wf-1")
@@ -81,7 +79,7 @@ class WorkflowEngineTest {
     }
 
     @Test
-    void runConsumerLoop_ShouldHandleRetryableException() {
+    void runConsumerLoop_ShouldHandleRetryableException() throws InterruptedException {
         // Arrange
         Task task = Task.builder().workflowId("wf-retry").targetAgent(AgentType.WORKER).retryCount(0).build();
 
@@ -101,7 +99,7 @@ class WorkflowEngineTest {
     }
 
     @Test
-    void runConsumerLoop_ShouldFail_WhenMaxRetriesReached() {
+    void runConsumerLoop_ShouldFail_WhenMaxRetriesReached() throws InterruptedException {
         // Arrange
         Task task = Task.builder().workflowId("wf-max").targetAgent(AgentType.WORKER).retryCount(3).build();
 
@@ -120,7 +118,7 @@ class WorkflowEngineTest {
     }
 
     @Test
-    void runConsumerLoop_ShouldHandleTerminalException() {
+    void runConsumerLoop_ShouldHandleTerminalException() throws InterruptedException {
         // Arrange
         Task task = Task.builder().workflowId("wf-term").targetAgent(AgentType.WORKER).build();
 
@@ -137,7 +135,7 @@ class WorkflowEngineTest {
     }
 
     @Test
-    void runConsumerLoop_ShouldHandleUnexpectedCrash() {
+    void runConsumerLoop_ShouldHandleUnexpectedCrash() throws InterruptedException {
         // Arrange
         Task task = Task.builder().workflowId("wf-crash").targetAgent(AgentType.WORKER).build();
 
