@@ -11,8 +11,7 @@ import java.util.concurrent.TimeUnit;
 public class InMemoryQueue implements ITaskQueue {
     private final BlockingQueue<Task> queue = new LinkedBlockingQueue<>();
     public void push(Task t) { queue.offer(t); }
-    public Optional<Task> pop() {
-        try { return Optional.ofNullable(queue.poll(2, TimeUnit.SECONDS)); }
-        catch (InterruptedException e) { return Optional.empty(); }
+    public Optional<Task> pop() throws InterruptedException{
+        return Optional.ofNullable(queue.poll(2, TimeUnit.SECONDS));
     }
 }

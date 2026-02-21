@@ -6,5 +6,5 @@ import java.util.Optional;
 
 public interface ITaskQueue {
     void push(Task task);
-    Optional<Task> pop(); // Blocking pop
+    Optional<Task> pop() throws InterruptedException; // Blocking pop
 }
